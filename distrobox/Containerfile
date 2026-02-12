@@ -1,0 +1,66 @@
+# Distrobox-compatible container image for Neovim development environment
+# with GitHub Copilot and Claude Code integration
+#
+# Build:  podman build -t neovim-dev -f Containerfile .
+# Create: distrobox create --image neovim-dev --name nvim-dev
+# Enter:  distrobox enter nvim-dev
+FROM registry.fedoraproject.org/fedora-toolbox:41
+
+# ── Core build tools & libraries ──────────────────────────────────────────────
+RUN dnf install -y \
+    gcc gcc-c++ make cmake ninja-build \
+    git git-delta curl wget unzip tar \
+    pkg-config openssl-devel zlib-devel \
+    && dnf clean all
+
+# ── Neovim (latest stable from COPR) ─────────────────────────────────────────
+RUN dnf install -y neovim python3-neovim && dnf clean all
+
+# ── Runtime dependencies for Neovim plugins / Telescope / LSP ─────────────────
+RUN dnf install -y \
+    ripgrep fd-find fzf \
+    python3 python3-pip python3-devel \
+    nodejs npm \
+    golang \
+    lua luarocks \
+    shellcheck shfmt \
+    wl-clipboard xclip xsel \
+    && dnf clean all
+
+# ── Nerd Fonts (JetBrains Mono & Symbols Only) ───────────────────────────────
+RUN mkdir -p /usr/local/share/fonts/NerdFonts \
+    && cd /tmp \
+    && curl -fLO https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz \
+    && tar -xf JetBrainsMono.tar.xz -C /usr/local/share/fonts/NerdFonts \
+    && curl -fLO https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.tar.xz \
+    && tar -xf FiraCode.tar.xz -C /usr/local/share/fonts/NerdFonts \
+    && curl -fLO https://github.com/ryanoasis/nerd-fonts/releases/latest/download/NerdFontsSymbolsOnly.tar.xz \
+    && tar -xf NerdFontsSymbolsOnly.tar.xz -C /usr/local/share/fonts/NerdFonts \
+    && fc-cache -fv \
+    && rm -rf /tmp/*.tar.xz
+
+# ── Claude Code CLI (via npm) ─────────────────────────────────────────────────
+RUN npm install -g @anthropic-ai/claude-code
+
+# ── Rust toolchain (rustup) ──────────────────────────────────────────────────
+# Installed per-user in setup.sh to respect $HOME inside distrobox
+
+# ── gdu (disk usage analyzer, required by AstroNvim) ─────────────────────────
+RUN dnf install -y gdu || go install github.com/dundee/gdu/v5/cmd/gdu@latest 2>/dev/null; \
+    dnf clean all
+
+# ── Tree-sitter CLI (for :TSInstall) ─────────────────────────────────────────
+RUN npm install -g tree-sitter-cli
+
+# ── Prettier & common formatters ─────────────────────────────────────────────
+RUN npm install -g prettier typescript typescript-language-server \
+    vscode-langservers-extracted @tailwindcss/language-server \
+    bash-language-server yaml-language-server
+
+# ── Python LSP / formatters ──────────────────────────────────────────────────
+RUN pip3 install --break-system-packages pyright ruff black
+
+LABEL com.github.containers.toolbox="true" \
+      name="neovim-dev" \
+      summary="Neovim dev environment with Copilot & Claude Code" \
+      maintainer="sudokuh1"
