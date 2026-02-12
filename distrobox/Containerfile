@@ -46,7 +46,9 @@ RUN npm install -g @anthropic-ai/claude-code
 # Installed per-user in setup.sh to respect $HOME inside distrobox
 
 # ── gdu (disk usage analyzer, required by AstroNvim) ─────────────────────────
-RUN dnf install -y gdu || go install github.com/dundee/gdu/v5/cmd/gdu@latest 2>/dev/null; \
+RUN dnf install -y gdu \
+    || (command -v go >/dev/null && go install github.com/dundee/gdu/v5/cmd/gdu@latest) \
+    || echo "WARNING: gdu not installed — AstroNvim disk usage feature will be unavailable"; \
     dnf clean all
 
 # ── Tree-sitter CLI (for :TSInstall) ─────────────────────────────────────────
@@ -58,7 +60,11 @@ RUN npm install -g prettier typescript typescript-language-server \
     bash-language-server yaml-language-server
 
 # ── Python LSP / formatters ──────────────────────────────────────────────────
-RUN pip3 install --break-system-packages pyright ruff black
+RUN python3 -m venv /opt/python-tools \
+    && /opt/python-tools/bin/pip install pyright ruff black \
+    && ln -s /opt/python-tools/bin/pyright /usr/local/bin/pyright \
+    && ln -s /opt/python-tools/bin/ruff /usr/local/bin/ruff \
+    && ln -s /opt/python-tools/bin/black /usr/local/bin/black
 
 LABEL com.github.containers.toolbox="true" \
       name="neovim-dev" \

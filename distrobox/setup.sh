@@ -49,7 +49,7 @@ fi
 
 # Ensure rust-analyzer is available
 if ! command -v rust-analyzer &>/dev/null; then
-  rustup component add rust-analyzer 2>/dev/null || true
+  rustup component add rust-analyzer || echo "  ⚠ Failed to install rust-analyzer — install manually with: rustup component add rust-analyzer"
 fi
 
 # ── 3. Go tools (optional) ──────────────────────────────────────────────────
